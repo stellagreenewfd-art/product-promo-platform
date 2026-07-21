@@ -7,9 +7,9 @@ const app = express()
 const PORT = process.env.PORT || 3000
 const DIST_DIR = path.join(__dirname, '..', 'dist')
 
-// JSONBin config
-const JSONBIN_KEY = process.env.JSONBIN_MASTER_KEY || ''
-const JSONBIN_ID = process.env.JSONBIN_BIN_ID || ''
+// JSONBin config — hardcoded fallback if env vars not set
+const JSONBIN_KEY = process.env.JSONBIN_MASTER_KEY || '$2a$10$dHfFZ48xmjYljgAlz6z4B.NZQdUX7yJQatzsw5Tld3In/NCsoBx1i'
+const JSONBIN_ID = process.env.JSONBIN_BIN_ID || '6a5f84b6da38895dfe7b46f2'
 const JSONBIN_API = 'https://api.jsonbin.io/v3/b'
 const USE_JSONBIN = JSONBIN_KEY && JSONBIN_ID
 
