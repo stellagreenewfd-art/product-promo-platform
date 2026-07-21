@@ -441,127 +441,156 @@ function EmptyState({ text = '暂无数据' }) {
    Login Page
    ==================================================================== */
 function LoginPage({ onLogin }) {
-  const [mode, setMode] = useState('login') // 'login' | 'register' | 'admin'
-
-  // User login fields
-  const [loginAccount, setLoginAccount] = useState('')
-  const [loginPwd, setLoginPwd] = useState('')
-
-  // User register fields
+  const [mode, setMode] = useState('login')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [company, setCompany] = useState('')
-  const [category, setCategory] = useState('')
-  const [regAccount, setRegAccount] = useState('')
-  const [regPwd, setRegPwd] = useState('')
-
-  // Admin login fields
-  const [adminAccount, setAdminAccount] = useState('')
-  const [adminPwd, setAdminPwd] = useState('')
-
+  const [industry, setIndustry] = useState('')
+  const [account, setAccount] = useState('')
+  const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleUserLogin = () => {
-    if (!loginAccount.trim() || !loginPwd.trim()) { setErr('请输入账号和密码'); return }
-    const users = loadAllUsers()
-    const found = users.find(u => u.account === loginAccount.trim() && u.password === loginPwd.trim())
-    if (!found) { setErr('账号或密码错误，请检查或先注册'); return }
-    saveUser(found)
-    onLogin(found)
-  }
+  const handleSubmit = () => {
+    setErr('')
+    if (!account.trim() || !password.trim()) { setErr('请输入账号和密码'); return }
+    setLoading(true)
 
-  const handleRegister = () => {
-    if (!phone.trim() || !regAccount.trim() || !regPwd.trim()) { setErr('电话、账号、密码为必填项'); return }
-    const users = loadAllUsers()
-    if (users.find(u => u.account === regAccount.trim())) { setErr('该账号已被注册'); return }
-    const user = { name, phone, company, category, account: regAccount.trim(), password: regPwd.trim(), time: new Date().toISOString() }
-    saveUser(user)
-    saveUserRecord(user)
-    onLogin(user)
-  }
-
-  const handleAdminLogin = () => {
-    if (adminAccount === 'qaq' && adminPwd === 'qaq881205') {
-      onLogin({ name: '管理员', account: 'admin', isAdmin: true })
-    } else {
-      setErr('管理员账号或密码错误')
+    if (mode === 'admin') {
+      if (account.trim() === 'qaq' && password.trim() === 'qaq881205') {
+        onLogin({ name: '管理员', account: 'admin', isAdmin: true })
+      } else { setErr('管理员账号或密码错误') }
+      setLoading(false)
+      return
     }
-  }
 
-  const modeTitle = mode === 'admin' ? '管理员登录' : mode === 'register' ? '用户注册' : '用户登录'
-  const modeIcon = mode === 'admin' ? 'shield' : mode === 'register' ? 'user' : 'rocket'
-  const modeGrad = mode === 'admin'
-    ? 'linear-gradient(135deg, #cf222e 0%, #8250df 100%)'
-    : 'linear-gradient(135deg, #388bfd 0%, #8250df 100%)'
+    setTimeout(() => {
+      setLoading(false)
+      if (mode === 'login') {
+        const users = loadAllUsers()
+        const found = users.find(u => u.account === account.trim() && u.password === password.trim())
+        if (!found) { setErr('账号或密码错误，请先注册'); return }
+        saveUser(found)
+        onLogin(found)
+      } else {
+        if (!phone.trim()) { setErr('手机号为必填项'); return }
+        const users = loadAllUsers()
+        if (users.find(u => u.account === account.trim())) { setErr('该账号已被注册'); return }
+        const user = { name, phone, company, category: industry, account: account.trim(), password: password.trim(), time: new Date().toISOString() }
+        saveUser(user)
+        saveUserRecord(user)
+        onLogin(user)
+      }
+    }, 400)
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-canvas)' }}>
-      <div className="card p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center relative login-gradient" style={{ background: 'var(--ink-900)' }}>
+      <div className="card p-10 w-full max-w-md animate-slide-up">
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: modeGrad }}>
-            <Icon name={modeIcon} size={20} />
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border mb-4" style={{ borderColor: 'var(--ink-500)', background: 'var(--ink-800)' }}>
+            <span className="status-dot" />
+            <span className="text-xs text-[var(--text-dim)] font-medium">全平台产品推广分析系统</span>
           </div>
-          <h1 className="text-lg font-bold text-[var(--text)]">
-            {mode === 'admin' ? '后台管理系统' : '全平台产品推广分析系统'}
+          <h1 className="text-2xl font-extrabold text-[var(--text)] tracking-tight">
+            {mode === 'admin' ? '后台管理' : mode === 'login' ? '欢迎回来' : '创建账号'}
           </h1>
-          <p className="text-xs text-[var(--text-dim)] mt-1">{modeTitle}</p>
+          <p className="text-sm text-[var(--text-dim)] mt-2">
+            {mode === 'admin' ? '管理员身份验证' : mode === 'login' ? '登录您的账号开始分析' : '注册后即可分析全平台推广方案'}
+          </p>
         </div>
 
         {/* Mode tabs */}
-        <div className="flex mb-5 border border-[var(--border-muted)] rounded-lg overflow-hidden">
+        <div className="flex mb-6 border rounded-lg p-0.5" style={{ borderColor: 'var(--ink-500)', background: 'var(--ink-800)' }}>
           {[
-            ['login', '用户登录'],
-            ['register', '用户注册'],
-            ['admin', '管理员登录'],
+            ['login', '登录'],
+            ['register', '注册'],
+            ['admin', '管理员'],
           ].map(([k, label]) => (
             <button
               key={k}
-              onClick={() => { setMode(k); setErr('') }}
-              className={`flex-1 py-2 text-xs font-semibold transition-all ${mode === k ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-surface)] text-[var(--text-dim)] hover:text-[var(--text)]'}`}
+              onClick={() => { setMode(k); setErr(''); setPassword('') }}
+              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${
+                mode === k ? 'text-white shadow-sm' : 'text-[var(--text-dim)] hover:text-[var(--text)]'
+              }`}
+              style={mode === k ? { background: 'var(--primary)' } : {}}
             >
               {label}
             </button>
           ))}
         </div>
 
-        {/* USER LOGIN */}
-        {mode === 'login' && (
-          <div className="space-y-3">
-            <div><label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">账号</label><input type="text" value={loginAccount} onChange={e => setLoginAccount(e.target.value)} placeholder="输入账号" onKeyDown={e => e.key === 'Enter' && handleUserLogin()} className="input" /></div>
-            <div><label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">密码</label><input type="password" value={loginPwd} onChange={e => setLoginPwd(e.target.value)} placeholder="输入密码" onKeyDown={e => e.key === 'Enter' && handleUserLogin()} className="input" /></div>
-            {err && <div className="p-2 rounded-lg bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-xs text-[var(--danger)]">{err}</div>}
-            <button onClick={handleUserLogin} className="btn btn-primary w-full py-3">登录</button>
-          </div>
-        )}
+        {/* Fields */}
+        <div className="space-y-4">
+          {mode === 'register' && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1.5">姓名</label>
+                  <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="您的姓名" className="input" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1.5">手机号 <span className="text-[var(--danger)]">*</span></label>
+                  <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="手机号码" className="input" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1.5">公司</label>
+                <input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="公司名称" className="input" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1.5">所属行业 / 分析品类</label>
+                <input type="text" value={industry} onChange={e => setIndustry(e.target.value)} placeholder="例如：食品、美妆、3C数码…" className="input" />
+              </div>
+            </>
+          )}
 
-        {/* USER REGISTER */}
-        {mode === 'register' && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">姓名</label><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="姓名" className="input" /></div>
-              <div><label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">电话 <span className="text-[var(--danger)]">*</span></label><input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="手机号" className="input" /></div>
-            </div>
-            <div><label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">公司</label><input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="公司名称" className="input" /></div>
-            <div><label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">分析品类</label><input type="text" value={category} onChange={e => setCategory(e.target.value)} placeholder="例如：食品、美妆、3C…" className="input" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">账号 <span className="text-[var(--danger)]">*</span></label><input type="text" value={regAccount} onChange={e => setRegAccount(e.target.value)} placeholder="设置账号" className="input" /></div>
-              <div><label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">密码 <span className="text-[var(--danger)]">*</span></label><input type="password" value={regPwd} onChange={e => setRegPwd(e.target.value)} placeholder="设置密码" onKeyDown={e => e.key === 'Enter' && handleRegister()} className="input" /></div>
-            </div>
-            {err && <div className="p-2 rounded-lg bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-xs text-[var(--danger)]">{err}</div>}
-            <button onClick={handleRegister} className="btn btn-primary w-full py-3">注册并进入</button>
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1.5">
+              {mode === 'admin' ? '管理员账号' : '账号'} <span className="text-[var(--danger)]">*</span>
+            </label>
+            <input
+              type="text" value={account} onChange={e => setAccount(e.target.value)}
+              placeholder={mode === 'admin' ? '管理员账号' : '输入账号'}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              className="input"
+            />
           </div>
-        )}
 
-        {/* ADMIN LOGIN */}
-        {mode === 'admin' && (
-          <div className="space-y-3">
-            <div><label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">管理员账号</label><input type="text" value={adminAccount} onChange={e => setAdminAccount(e.target.value)} placeholder="输入管理员账号" onKeyDown={e => e.key === 'Enter' && handleAdminLogin()} className="input" /></div>
-            <div><label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">密码</label><input type="password" value={adminPwd} onChange={e => setAdminPwd(e.target.value)} placeholder="输入管理员密码" onKeyDown={e => e.key === 'Enter' && handleAdminLogin()} className="input" /></div>
-            {err && <div className="p-2 rounded-lg bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-xs text-[var(--danger)]">{err}</div>}
-            <button onClick={handleAdminLogin} className="btn btn-primary w-full py-3">登录后台</button>
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1.5">
+              密码 <span className="text-[var(--danger)]">*</span>
+            </label>
+            <input
+              type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder={mode === 'register' ? '设置密码' : '输入密码'}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              className="input"
+            />
           </div>
-        )}
+
+          {err && (
+            <div className="p-3 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--danger)' }}>
+              {err}
+            </div>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="btn btn-primary w-full py-3 text-base mt-2"
+          >
+            {loading ? (
+              <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" opacity="0.75" />
+              </svg>
+            ) : (
+              mode === 'admin' ? '登录后台' : mode === 'login' ? '登录' : '注册并登录'
+            )}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -572,48 +601,58 @@ function LoginPage({ onLogin }) {
    ==================================================================== */
 function AdminPanel({ onClose }) {
   const [tab, setTab] = useState('users')
-  const [refreshKey, setRefreshKey] = useState(0)
   const [users, setUsers] = useState(loadAllUsers())
   const [cases, setCases] = useState(loadCases())
 
-  const doRefresh = () => {
-    setUsers(loadAllUsers())
-    setCases(loadCases())
-    setRefreshKey(k => k + 1)
-  }
+  const doRefresh = () => { setUsers(loadAllUsers()); setCases(loadCases()) }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-      <div className="card p-6 w-full max-w-4xl max-h-[85vh] flex flex-col">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ background: 'rgba(8,11,20,0.7)', backdropFilter: 'blur(8px)' }}>
+      <div className="card p-8 w-full max-w-5xl max-h-[85vh] flex flex-col animate-slide-up">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-bold text-[var(--text)]">管理后台</h2>
-            <div className="flex border border-[var(--border-muted)] rounded-lg overflow-hidden">
-              <button onClick={() => setTab('users')} className={`px-3 py-1.5 text-xs font-semibold transition-all ${tab === 'users' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-surface)] text-[var(--text-dim)] hover:text-[var(--text)]'}`}>
-                用户管理 ({users.length})
-              </button>
-              <button onClick={() => setTab('cases')} className={`px-3 py-1.5 text-xs font-semibold transition-all ${tab === 'cases' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-surface)] text-[var(--text-dim)] hover:text-[var(--text)]'}`}>
-                分析案例 ({cases.length})
-              </button>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.1), rgba(130,80,223,0.1))', border: '1px solid rgba(239,68,68,0.15)' }}>
+              <Icon name="shield" size={18} />
+            </div>
+            <div>
+              <h2 className="text-lg font-extrabold text-[var(--text)]">管理后台</h2>
+              <p className="text-xs text-[var(--text-dim)]">用户 {users.length} 人 · 分析案例 {cases.length} 条</p>
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={doRefresh} className="btn btn-outline btn-sm gap-1" title="刷新数据">
-              🔄 刷新
-            </button>
+            <button onClick={doRefresh} className="btn btn-outline btn-sm gap-1">🔄 刷新</button>
             <button onClick={tab === 'cases' ? (() => { exportCasesCSV(); doRefresh() }) : (() => { exportUsersCSV(); doRefresh() })} className="btn btn-primary btn-sm gap-1">
-              <Icon name="download" size={14} />导出 {tab === 'cases' ? '案例' : '用户'} CSV
+              <Icon name="download" size={14} />导出 CSV
             </button>
             <button onClick={onClose} className="btn btn-outline btn-sm">关闭</button>
           </div>
+        </div>
+
+        {/* Tab switcher */}
+        <div className="flex gap-1 mb-5 p-1 rounded-lg" style={{ background: 'var(--ink-800)', border: '1px solid var(--ink-500)' }}>
+          {[
+            ['users', '📋 用户管理'],
+            ['cases', '🔍 分析案例'],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${
+                tab === k ? 'text-white' : 'text-[var(--text-dim)] hover:text-[var(--text)]'
+              }`}
+              style={tab === k ? { background: 'var(--primary)' } : {}}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Users Table */}
         {tab === 'users' && (
           <div className="table-wrap flex-1 overflow-auto">
             <table>
-              <thead><tr><th>姓名</th><th>电话</th><th>公司</th><th>品类</th><th>账号</th><th>注册时间</th></tr></thead>
+              <thead><tr><th>姓名</th><th>手机号</th><th>公司</th><th>品类</th><th>账号</th><th>注册时间</th></tr></thead>
               <tbody>
                 {users.map((u, i) => (
                   <tr key={i}>
@@ -621,11 +660,11 @@ function AdminPanel({ onClose }) {
                     <td>{u.phone || '—'}</td>
                     <td>{u.company || '—'}</td>
                     <td>{u.category || '—'}</td>
-                    <td className="font-bold text-[var(--primary)]">{u.account || '—'}</td>
-                    <td className="text-xs">{u.time ? new Date(u.time).toLocaleString('zh-CN') : '—'}</td>
+                    <td className="font-bold" style={{ color: 'var(--primary)' }}>{u.account || '—'}</td>
+                    <td className="text-xs text-[var(--text-dim)]">{u.time ? new Date(u.time).toLocaleString('zh-CN') : '—'}</td>
                   </tr>
                 ))}
-                {users.length === 0 && <tr><td colSpan={6} className="text-center text-[var(--text-dim)] py-8">暂无用户数据</td></tr>}
+                {users.length === 0 && <tr><td colSpan={6} className="text-center text-[var(--text-dim)] py-12">暂无用户 — 刷新或等待新用户注册后点击🔄</td></tr>}
               </tbody>
             </table>
           </div>
@@ -635,7 +674,7 @@ function AdminPanel({ onClose }) {
         {tab === 'cases' && (
           <div className="table-wrap flex-1 overflow-auto">
             <table>
-              <thead><tr><th>用户</th><th>电话</th><th>公司</th><th>品类</th><th>分析产品</th><th>分析平台</th><th>时间</th></tr></thead>
+              <thead><tr><th>用户</th><th>手机号</th><th>公司</th><th>品类</th><th>分析产品</th><th>平台</th><th>时间</th></tr></thead>
               <tbody>
                 {cases.map((c, i) => (
                   <tr key={i}>
@@ -643,19 +682,20 @@ function AdminPanel({ onClose }) {
                     <td>{c.phone || '—'}</td>
                     <td>{c.company || '—'}</td>
                     <td>{c.category || '—'}</td>
-                    <td className="font-bold text-[var(--primary)]">{c.product || '—'}</td>
+                    <td className="font-bold" style={{ color: 'var(--primary)' }}>{c.product || '—'}</td>
                     <td className="text-xs">{c.platforms || '—'}</td>
-                    <td className="text-xs">{c.time ? new Date(c.time).toLocaleString('zh-CN') : '—'}</td>
+                    <td className="text-xs text-[var(--text-dim)]">{c.time ? new Date(c.time).toLocaleString('zh-CN') : '—'}</td>
                   </tr>
                 ))}
-                {cases.length === 0 && <tr><td colSpan={7} className="text-center text-[var(--text-dim)] py-8">暂无分析案例数据</td></tr>}
+                {cases.length === 0 && <tr><td colSpan={7} className="text-center text-[var(--text-dim)] py-12">暂无分析案例 — 用户分析产品后自动记录</td></tr>}
               </tbody>
             </table>
           </div>
         )}
-        {/* Storage info */}
-        <div className="mt-3 pt-3 border-t border-[var(--border-muted)] text-[10px] text-[var(--text-faint)] flex items-center justify-between">
-          <span>数据存储在浏览器本地（localStorage）。如有新用户注册，请点击"刷新"查看。导出 CSV 可永久保存。</span>
+
+        {/* Footer note */}
+        <div className="mt-4 pt-3 border-t text-[11px] text-[var(--text-faint)] flex items-center justify-between" style={{ borderColor: 'var(--ink-500)' }}>
+          <span>📌 数据存储在浏览器本地（同域名同设备可见）。定期导出 CSV 永久保存。</span>
           <span>刷新于 {new Date().toLocaleTimeString('zh-CN')}</span>
         </div>
       </div>
