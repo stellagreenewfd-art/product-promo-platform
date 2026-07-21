@@ -67,7 +67,7 @@ app.get('/api/data', (req, res) => {
   })
 })
 
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
   const { name, phone, company, category, account, password } = req.body
   if (!phone || !account || !password) {
     return res.status(400).json({ error: '手机号、账号、密码为必填项' })
@@ -78,7 +78,7 @@ app.post('/api/register', (req, res) => {
   data.counter++
   const user = { id: data.counter, name, phone, company, category, account, password, createdAt: new Date().toISOString() }
   data.users.push(user)
-  persist()
+  await persist()
   res.json({ success: true, user: Object.assign({}, user, { password: undefined }) })
 })
 
@@ -89,11 +89,11 @@ app.post('/api/login', (req, res) => {
   res.json({ success: true, user: Object.assign({}, user, { password: undefined }) })
 })
 
-app.post('/api/cases', (req, res) => {
+app.post('/api/cases', async (req, res) => {
   const { user, phone, company, category, product, platforms } = req.body
   const entry = { user, phone, company, category, product, platforms, createdAt: new Date().toISOString() }
   data.cases.push(entry)
-  persist()
+  await persist()
   res.json({ success: true })
 })
 
@@ -108,9 +108,9 @@ app.use((req, res, next) => {
 
 // ── Persistence ──
 
-function persist() {
+async function persist() {
   if (USE_JSONBIN) {
-    saveRemote(data).catch(err => console.error('JSONBin persist error:', err.message))
+    try { await saveRemote(data) } catch (err) { console.error('JSONBin persist error:', err.message) }
   } else {
     saveLocal(data)
   }

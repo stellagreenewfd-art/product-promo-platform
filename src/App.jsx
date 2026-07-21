@@ -414,7 +414,7 @@ async function exportUsersCSV() {
   const users = await loadAllUsers()
   if (users.length === 0) { alert('暂无用户数据'); return }
   const header = '姓名,电话,公司,分析品类,账号,注册时间\n'
-  const rows = users.map(u => `${u.name||''},${u.phone||''},${u.company||''},${u.category||''},${u.account||''},${u.time||''}`).join('\n')
+  const rows = users.map(u => `${u.name||''},${u.phone||''},${u.company||''},${u.category||''},${u.account||''},${u.createdAt || u.time||''}`).join('\n')
   downloadCSV(header + rows, `用户数据_${new Date().toISOString().slice(0,10)}`)
 }
 
@@ -706,7 +706,7 @@ function AdminPanel({ onClose }) {
                     <td>{u.company || '—'}</td>
                     <td>{u.category || '—'}</td>
                     <td className="font-bold" style={{ color: 'var(--primary)' }}>{u.account || '—'}</td>
-                    <td className="text-xs text-[var(--text-dim)]">{u.time ? new Date(u.time).toLocaleString('zh-CN') : '—'}</td>
+                    <td className="text-xs text-[var(--text-dim)]">{u.createdAt ? new Date(u.createdAt).toLocaleString('zh-CN') : u.time ? new Date(u.time).toLocaleString('zh-CN') : '—'}</td>
                   </tr>
                 ))}
                 {users.length === 0 && <tr><td colSpan={6} className="text-center text-[var(--text-dim)] py-12">暂无用户 — 刷新或等待新用户注册后点击🔄</td></tr>}
@@ -729,7 +729,7 @@ function AdminPanel({ onClose }) {
                     <td>{c.category || '—'}</td>
                     <td className="font-bold" style={{ color: 'var(--primary)' }}>{c.product || '—'}</td>
                     <td className="text-xs">{c.platforms || '—'}</td>
-                    <td className="text-xs text-[var(--text-dim)]">{c.time ? new Date(c.time).toLocaleString('zh-CN') : '—'}</td>
+                    <td className="text-xs text-[var(--text-dim)]">{c.createdAt ? new Date(c.createdAt).toLocaleString('zh-CN') : c.time ? new Date(c.time).toLocaleString('zh-CN') : '—'}</td>
                   </tr>
                 ))}
                 {cases.length === 0 && <tr><td colSpan={7} className="text-center text-[var(--text-dim)] py-12">暂无分析案例 — 用户分析产品后自动记录</td></tr>}
