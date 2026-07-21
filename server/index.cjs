@@ -5,8 +5,10 @@ const mongoose = require('mongoose')
 
 const app = express()
 const PORT = process.env.PORT || 3000
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/product-promo'
+const MONGODB_URI = process.env.MONGODB_URI || ''
 const DIST_DIR = path.join(__dirname, '..', 'dist')
+
+let mongoReady = false
 
 app.use(cors())
 app.use(express.json({ limit: '1mb' }))
@@ -36,14 +38,26 @@ const CaseSchema = new mongoose.Schema({
 const User = mongoose.model('User', UserSchema)
 const Case = mongoose.model('Case', CaseSchema)
 
+// ── Middleware: block API if DB not connected ──
+
+function requireDB(req, res, next) {
+  if (!mongoReady) return res.status(503).json({ error: '数据库未连接，请先配置 MongoDB' })
+  next()
+}
+
 // ── Serve static frontend ──
 
 app.use(express.static(DIST_DIR))
 
 // ── API routes ──
 
+// GET /api/health — check if service is alive
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, db: mongoReady })
+})
+
 // GET /api/data — all users & cases (for admin)
-app.get('/api/data', async (req, res) => {
+app.get('/api/data', requireDB, async (req, res) => {
   try {
     const [users, cases] = await Promise.all([
       User.find().select('-password').lean(),
@@ -56,7 +70,7 @@ app.get('/api/data', async (req, res) => {
 })
 
 // POST /api/register
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', requireDB, async (req, res) => {
   const { name, phone, company, category, account, password } = req.body
   if (!phone || !account || !password) {
     return res.status(400).json({ error: '手机号、账号、密码为必填项' })
@@ -73,7 +87,7 @@ app.post('/api/register', async (req, res) => {
 })
 
 // POST /api/login
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', requireDB, async (req, res) => {
   const { account, password } = req.body
   try {
     const user = await User.findOne({ account, password })
@@ -85,7 +99,7 @@ app.post('/api/login', async (req, res) => {
 })
 
 // POST /api/cases
-app.post('/api/cases', async (req, res) => {
+app.post('/api/cases', requireDB, async (req, res) => {
   const { user, phone, company, category, product, platforms } = req.body
   try {
     await Case.create({ user, phone, company, category, product, platforms })
@@ -106,12 +120,22 @@ app.use((req, res, next) => {
 
 // ── Start ──
 
-mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log('MongoDB connected')
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
-  })
-  .catch(err => {
-    console.error('MongoDB connection failed:', err.message)
-    process.exit(1)
-  })
+// Start server first so frontend is always available
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`)
+  
+  if (!MONGODB_URI) {
+    console.warn('MONGODB_URI not set — running without database. API calls will return 503.')
+    console.warn('Set MONGODB_URI in Render environment variables to enable user accounts.')
+  } else {
+    mongoose.connect(MONGODB_URI)
+      .then(() => {
+        mongoReady = true
+        console.log('MongoDB connected')
+      })
+      .catch(err => {
+        console.error('MongoDB connection failed:', err.message)
+        console.warn('Server is running but database features are unavailable.')
+      })
+  }
+})
