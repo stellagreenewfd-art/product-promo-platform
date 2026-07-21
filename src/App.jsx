@@ -342,44 +342,84 @@ function Icon({ name, size = 18 }) {
 }
 
 /* ====================================================================
-   LocalStorage helpers
+   Data storage — API + LocalStorage hybrid
    ==================================================================== */
+const API_BASE = '/api' // same origin when served by our Node server
+
 const LS_KEY = 'promo_system_user'
-const LS_USERS_KEY = 'promo_system_users'
-const LS_CASES_KEY = 'promo_system_cases'
 
 function loadUser() { try { return JSON.parse(localStorage.getItem(LS_KEY)) } catch { return null } }
 function saveUser(u) { localStorage.setItem(LS_KEY, JSON.stringify(u)) }
 function clearUser() { localStorage.removeItem(LS_KEY) }
 
-function saveUserRecord(record) {
-  const existing = loadAllUsers()
-  existing.push(record)
-  localStorage.setItem(LS_USERS_KEY, JSON.stringify(existing))
+// Cloud-backed: users
+async function saveUserRecord(record) {
+  try {
+    await fetch(`${API_BASE}/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
+    })
+  } catch (e) {
+    console.warn('Cloud save failed, fallback to localStorage')
+    const existing = loadAllUsersLocal()
+    existing.push(record)
+    localStorage.setItem('promo_system_users', JSON.stringify(existing))
+  }
 }
-function loadAllUsers() { try { return JSON.parse(localStorage.getItem(LS_USERS_KEY)) || [] } catch { return [] } }
 
-// --- Analysis case logging ---
-function logCase(user, productName, platforms) {
-  const cases = loadCases()
-  cases.unshift({ user: user.name || user.account, phone: user.phone, company: user.company, category: user.category, product: productName, platforms, time: new Date().toISOString() })
-  localStorage.setItem(LS_CASES_KEY, JSON.stringify(cases))
+async function loadAllUsers() {
+  try {
+    const res = await fetch(`${API_BASE}/data`)
+    const data = await res.json()
+    return data.users || []
+  } catch {
+    return loadAllUsersLocal()
+  }
 }
-function loadCases() { try { return JSON.parse(localStorage.getItem(LS_CASES_KEY)) || [] } catch { return [] } }
+function loadAllUsersLocal() { try { return JSON.parse(localStorage.getItem('promo_system_users')) || [] } catch { return [] } }
+
+// Cloud-backed: cases
+async function logCase(user, productName, platforms) {
+  try {
+    await fetch(`${API_BASE}/cases`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user: user.name || user.account, phone: user.phone, company: user.company,
+        category: user.category, product: productName, platforms,
+      }),
+    })
+  } catch (e) {
+    console.warn('Cloud case log failed, fallback to localStorage')
+    const cases = loadCasesLocal()
+    cases.unshift({ user: user.name || user.account, phone: user.phone, company: user.company, category: user.category, product: productName, platforms, time: new Date().toISOString() })
+    localStorage.setItem('promo_system_cases', JSON.stringify(cases))
+  }
+}
+
+async function loadCases() {
+  try {
+    const res = await fetch(`${API_BASE}/data`)
+    const data = await res.json()
+    return data.cases || []
+  } catch {
+    return loadCasesLocal()
+  }
+}
+function loadCasesLocal() { try { return JSON.parse(localStorage.getItem('promo_system_cases')) || [] } catch { return [] } }
 
 /* ====================================================================
    CSV Export
    ==================================================================== */
-function exportUsersCSV() {
-  const users = loadAllUsers()
+async function exportUsersCSV() {
+  const users = await loadAllUsers()
   if (users.length === 0) { alert('暂无用户数据'); return }
   const header = '姓名,电话,公司,分析品类,账号,注册时间\n'
   const rows = users.map(u => `${u.name||''},${u.phone||''},${u.company||''},${u.category||''},${u.account||''},${u.time||''}`).join('\n')
   downloadCSV(header + rows, `用户数据_${new Date().toISOString().slice(0,10)}`)
 }
 
-function exportCasesCSV() {
-  const cases = loadCases()
+async function exportCasesCSV() {
+  const cases = await loadCases()
   if (cases.length === 0) { alert('暂无分析案例数据'); return }
   const header = '用户,电话,公司,分析品类,分析产品,分析平台,分析时间\n'
   const rows = cases.map(c => `${c.user||''},${c.phone||''},${c.company||''},${c.category||''},${c.product||''},${c.platforms||''},${c.time||''}`).join('\n')
@@ -464,21 +504,21 @@ function LoginPage({ onLogin }) {
       return
     }
 
-    setTimeout(() => {
+    setTimeout(async () => {
       setLoading(false)
       if (mode === 'login') {
-        const users = loadAllUsers()
+        const users = await loadAllUsers()
         const found = users.find(u => u.account === account.trim() && u.password === password.trim())
         if (!found) { setErr('账号或密码错误，请先注册'); return }
         saveUser(found)
         onLogin(found)
       } else {
         if (!phone.trim()) { setErr('手机号为必填项'); return }
-        const users = loadAllUsers()
+        const users = await loadAllUsers()
         if (users.find(u => u.account === account.trim())) { setErr('该账号已被注册'); return }
         const user = { name, phone, company, category: industry, account: account.trim(), password: password.trim(), time: new Date().toISOString() }
         saveUser(user)
-        saveUserRecord(user)
+        await saveUserRecord(user)
         onLogin(user)
       }
     }, 400)
@@ -601,10 +641,15 @@ function LoginPage({ onLogin }) {
    ==================================================================== */
 function AdminPanel({ onClose }) {
   const [tab, setTab] = useState('users')
-  const [users, setUsers] = useState(loadAllUsers())
-  const [cases, setCases] = useState(loadCases())
+  const [users, setUsers] = useState([])
+  const [cases, setCases] = useState([])
 
-  const doRefresh = () => { setUsers(loadAllUsers()); setCases(loadCases()) }
+  const doRefresh = async () => {
+    const [u, c] = await Promise.all([loadAllUsers(), loadCases()])
+    setUsers(u); setCases(c)
+  }
+
+  useEffect(() => { doRefresh() }, [])
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ background: 'rgba(8,11,20,0.7)', backdropFilter: 'blur(8px)' }}>

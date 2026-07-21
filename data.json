@@ -1,0 +1,19 @@
+{
+  "users": [
+    {
+      "phone": "13800001111",
+      "company": "测试公司",
+      "account": "test1",
+      "password": "123",
+      "time": "2026-07-21T10:30:23.033Z"
+    }
+  ],
+  "cases": [
+    {
+      "user": "test1",
+      "product": "大米",
+      "platforms": "全平台",
+      "time": "2026-07-21T10:30:23.041Z"
+    }
+  ]
+}
