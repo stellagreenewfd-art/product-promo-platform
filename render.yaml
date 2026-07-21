@@ -8,3 +8,7 @@ services:
     envVars:
       - key: PORT
         value: 10000
+      - key: JSONBIN_MASTER_KEY
+        sync: false
+      - key: JSONBIN_BIN_ID
+        value: 6a5f84b6da38895dfe7b46f2
