@@ -1,0 +1,12 @@
+/* App.css - Cyberpunk component utilities */
+
+.w-4\.5 { width: 1.125rem; }
+.h-4\.5 { height: 1.125rem; }
+.border-l-3 { border-left-width: 3px; }
+
+/* Glow border on focus */
+.glow-focus:focus {
+  outline: none;
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+}
