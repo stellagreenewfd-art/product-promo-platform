@@ -2,12 +2,11 @@ services:
   - type: web
     name: product-promo-platform
     env: node
+    plan: free
     buildCommand: npm install && npm run build
     startCommand: node server/index.cjs
     envVars:
       - key: PORT
         value: 10000
-    disk:
-      name: data
-      mountPath: /opt/render/project/src
-      sizeGB: 1
+      - key: MONGODB_URI
+        sync: false
