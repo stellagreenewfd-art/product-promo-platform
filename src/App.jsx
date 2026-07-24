@@ -816,9 +816,9 @@ function App() {
     setPlatformResults({})
 
     try {
-      // Log case
-      const platformNames = allPlatform ? '全平台' : PLATFORMS.find(p => p.key === platform)?.name || platform
-      logCase(user, productName.trim(), platformNames)
+      // Log case — awaited to guarantee recording
+      const platformNames = allPlatform ? ['全平台'] : [PLATFORMS.find(p => p.key === platform)?.name || platform]
+      await logCase(user, productName.trim(), platformNames)
 
       setStage('正在生成商品通用分析…')
       const common = await callCommon(productName.trim())
