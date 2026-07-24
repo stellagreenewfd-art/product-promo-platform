@@ -31,6 +31,35 @@ const PLATFORM_TABS = [
 ]
 
 const ALL_TABS = [...COMMON_TABS, ...PLATFORM_TABS]
+
+/* ====================================================================
+   Competitor parser — handles multiple field name variations and bad data
+   ==================================================================== */
+function parseCompetitors(data) {
+  if (!data || typeof data !== 'object') return { types: '', list: [], diff: '', benchmark: '', gap: '' }
+  const c = data.competitorAnalysis || data.competitor || data.CompetitorAnalysis || data || {}
+  const list = c.topCompetitors || c.competitors || c.topCompetitorList || c.mainCompetitors || c.竞品列表 || []
+  const safeList = (Array.isArray(list) ? list : [])
+    .map(x => ({
+      name: String(x?.name || x?.竞品名 || x?.brand || '').trim(),
+      price: String(x?.price || x?.价格 || x?.priceRange || '').trim(),
+      strength: String(x?.strength || x?.优势 || x?.coreAdvantage || '').trim(),
+      weakness: String(x?.weakness || x?.短板 || x?.weakPoint || '').trim(),
+    }))
+    .filter(x => x.name && x.name !== '—' && x.name !== 'undefined')
+  return {
+    types: c.competitorTypes || c.types || c.competitorType || '',
+    list: safeList,
+    diff: c.differentiation || c.diff || c.差异化 || '',
+    benchmark: c.priceBenchmark || c.benchmark || c.价格带 || '',
+    gap: c.opportunityGap || c.gap || c.机会 || '',
+  }
+}
+
+function hasCompetitorData(data) {
+  const p = parseCompetitors(data)
+  return p.list.length > 0 || (p.types && p.types.length > 10)
+}
 const API_KEY = 'sk-ba0219fb9677478081deaf4f6d7931ca'
 const API_URL = 'https://api.deepseek.com/v1/chat/completions'
 
@@ -851,7 +880,12 @@ function App() {
   const hasCommon = commonResult && !commonResult.error
   const hasPlatform = currentPlatformResult && !currentPlatformResult.error
   const hasResult = hasCommon || hasPlatform
-  const tabGroups = [...new Set(ALL_TABS.map(t => t.group))]
+  const hasCompetitor = hasCompetitorData(commonResult)
+  const availableTabs = ALL_TABS.filter(t => t.key !== 'competitor' || hasCompetitor)
+  const tabGroups = [...new Set(availableTabs.map(t => t.group))]
+  // Reorder: 平台规则分析 在最前（紧跟平台选择按钮），其次商品通用，最后内容创作
+  const GROUP_ORDER = ['平台规则分析', '商品通用分析', '内容创作']
+  tabGroups.sort((a, b) => GROUP_ORDER.indexOf(a) - GROUP_ORDER.indexOf(b))
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-canvas)' }}>
@@ -1001,12 +1035,19 @@ function App() {
           )}
           <div className="mb-5">
             {tabGroups.map(group => {
-              const tabs = ALL_TABS.filter(t => t.group === group)
+              const tabs = availableTabs.filter(t => t.group === group)
               const isPlatformGroup = group === '平台规则分析'
+              const platformName = PLATFORMS.find(p => p.key === platform)?.name
               return (
-                <div key={group} className="mb-3">
+                <div key={group} className={`mb-3 ${isPlatformGroup ? 'card p-3' : ''}`} style={isPlatformGroup ? { background: 'rgba(56,139,253,0.04)', borderColor: 'rgba(56,139,253,0.18)' } : {}}>
                   <div className="text-[10px] font-bold text-[var(--text-faint)] mb-1.5 px-1 uppercase tracking-widest">
-                    {group}{isPlatformGroup && !allPlatform && <span className="ml-2 text-[var(--primary)]">→ {PLATFORMS.find(p => p.key === platform)?.name}</span>}
+                    {isPlatformGroup ? (
+                      <span className="flex items-center gap-2">
+                        <span className="platform-dot" style={{ background: PLATFORMS.find(p => p.key === platform)?.color }} />
+                        <span className="text-[var(--primary)]">{platformName}</span>
+                        <span>· 平台规则分析</span>
+                      </span>
+                    ) : group}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {tabs.map(t => (
@@ -1304,9 +1345,10 @@ function OverviewTab({ data }) {
    Competitor Tab
    ==================================================================== */
 function CompetitorTab({ data }) {
-  const c = data?.competitorAnalysis || {}
-  const competitors = Array.isArray(c.topCompetitors) ? c.topCompetitors : []
-  if (!c.competitorTypes) return <EmptyState text="暂无竞品分析数据" />
+  let parsed
+  try { parsed = parseCompetitors(data) } catch { parsed = { types: '', list: [], diff: '', benchmark: '', gap: '' } }
+  const { types, list: competitors, diff, benchmark, gap } = parsed
+  if (!types && competitors.length === 0) return null
   return (
     <SectionCard title="竞品分析" subtitle="竞品对比 · 差异化 · 价格基准 · 机会缺口" iconName="search" badge="商品通用">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
@@ -1322,11 +1364,11 @@ function CompetitorTab({ data }) {
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div className="card p-5"><div className="sec-head"><h3 className="sec-head-title">差异化策略</h3><div className="ml-auto"><CopyBtn text={c.differentiation} /></div></div><div className="content-box">{c.differentiation || '—'}</div></div>
-        <div className="card p-5"><div className="sec-head"><h3 className="sec-head-title">价格基准</h3></div><div className="content-box">{c.priceBenchmark || '—'}</div></div>
+        <div className="card p-5"><div className="sec-head"><h3 className="sec-head-title">差异化策略</h3><div className="ml-auto"><CopyBtn text={diff} /></div></div><div className="content-box">{diff || '—'}</div></div>
+        <div className="card p-5"><div className="sec-head"><h3 className="sec-head-title">价格基准</h3></div><div className="content-box">{benchmark || '—'}</div></div>
       </div>
       <div className="card p-5" style={{ background: 'rgba(45,164,78,0.04)', borderColor: 'rgba(45,164,78,0.15)' }}>
-        <div className="sec-head"><Icon name="sparkles" size={16} /><h3 className="sec-head-title text-[var(--success)]">机会缺口</h3></div><div className="content-box">{c.opportunityGap || '—'}</div>
+        <div className="sec-head"><Icon name="sparkles" size={16} /><h3 className="sec-head-title text-[var(--success)]">机会缺口</h3></div><div className="content-box">{gap || '—'}</div>
       </div>
     </SectionCard>
   )
