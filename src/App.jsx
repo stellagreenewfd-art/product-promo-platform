@@ -407,6 +407,20 @@ async function loadCases() {
 }
 function loadCasesLocal() { try { return JSON.parse(localStorage.getItem('promo_system_cases')) || [] } catch { return [] } }
 
+// Unified admin data load — one request, no race condition
+async function loadAdminData() {
+  try {
+    const res = await fetch(`${API_BASE}/data`)
+    const text = await res.text()
+    // Guard against cold-start HTML pages
+    if (text.startsWith('<!doctype') || text.startsWith('<html')) throw new Error('cold start')
+    const data = JSON.parse(text)
+    return { users: data.users || [], cases: data.cases || [] }
+  } catch {
+    return { users: loadAllUsersLocal(), cases: loadCasesLocal() }
+  }
+}
+
 /* ====================================================================
    CSV Export
    ==================================================================== */
@@ -643,10 +657,30 @@ function AdminPanel({ onClose }) {
   const [tab, setTab] = useState('users')
   const [users, setUsers] = useState([])
   const [cases, setCases] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const doRefresh = async () => {
-    const [u, c] = await Promise.all([loadAllUsers(), loadCases()])
-    setUsers(u); setCases(c)
+    setLoading(true)
+    setError('')
+    try {
+      const { users: u, cases: c } = await loadAdminData()
+      if (u.length === 0 && c.length === 0) {
+        // Both empty — might be first load; silently retry once
+        setError('数据加载中，请稍候...')
+        setTimeout(async () => {
+          const retry = await loadAdminData()
+          setUsers(retry.users); setCases(retry.cases)
+          setLoading(false)
+          setError(retry.users.length === 0 && retry.cases.length === 0 ? '暂无数据 — 可能是服务器冷启动中，请稍后点击🔄刷新' : '')
+        }, 3000)
+        return
+      }
+      setUsers(u); setCases(c)
+    } catch (e) {
+      setError('加载失败: ' + e.message)
+    }
+    setLoading(false)
   }
 
   useEffect(() => { doRefresh() }, [])
@@ -662,7 +696,10 @@ function AdminPanel({ onClose }) {
             </div>
             <div>
               <h2 className="text-lg font-extrabold text-[var(--text)]">管理后台</h2>
-              <p className="text-xs text-[var(--text-dim)]">用户 {users.length} 人 · 分析案例 {cases.length} 条</p>
+              <p className="text-xs text-[var(--text-dim)]">
+                {loading ? '加载中...' : `用户 ${users.length} 人 · 分析案例 ${cases.length} 条`}
+                {error && <span className="ml-2" style={{color:'var(--warning)'}}>{error}</span>}
+              </p>
             </div>
           </div>
           <div className="flex gap-2">
