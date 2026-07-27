@@ -8,7 +8,40 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static('dist'));
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-ba0219fb9677478081deaf4f6d7931ca';
+// ===== 简单速率限制 =====
+const rateLimitMap = new Map(); // IP -> { count, resetTime }
+const RATE_LIMIT = 30; // 每IP每小时最多30次
+const RATE_WINDOW = 60 * 60 * 1000; // 1小时窗口
+
+function rateLimiter(req, res, next) {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  let entry = rateLimitMap.get(ip);
+  
+  if (!entry || now > entry.resetTime) {
+    entry = { count: 0, resetTime: now + RATE_WINDOW };
+    rateLimitMap.set(ip, entry);
+  }
+  
+  entry.count++;
+  res.setHeader('X-RateLimit-Remaining', Math.max(0, RATE_LIMIT - entry.count));
+  
+  if (entry.count > RATE_LIMIT) {
+    return res.status(429).json({ error: '请求过于频繁，请稍后再试（每小时限制30次）' });
+  }
+  
+  next();
+}
+
+// 每10分钟清理过期条目
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap) {
+    if (now > entry.resetTime) rateLimitMap.delete(ip);
+  }
+}, 10 * 60 * 1000);
+
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-dac7c21fcb434c35aa548a159de0f32d';
 const DEEPSEEK_API_URL = 'api.deepseek.com';
 
 // 调用DeepSeek API
@@ -266,8 +299,8 @@ function buildXiaohongshuPrompt(productName) {
 }`;
 }
 
-// API路由：分析产品
-app.post('/api/analyze', async (req, res) => {
+// API路由：分析产品（应用速率限制）
+app.post('/api/analyze', rateLimiter, async (req, res) => {
   const { productName, platform } = req.body;
   
   if (!productName) {
@@ -335,8 +368,8 @@ app.post('/api/check-banned-words', (req, res) => {
   });
 });
 
-// API路由：全平台分析
-app.post('/api/analyze-all', async (req, res) => {
+// API路由：全平台分析（应用速率限制）
+app.post('/api/analyze-all', rateLimiter, async (req, res) => {
   const { productName } = req.body;
   
   if (!productName) {

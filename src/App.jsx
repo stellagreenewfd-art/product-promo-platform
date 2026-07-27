@@ -60,7 +60,7 @@ function hasCompetitorData(data) {
   const p = parseCompetitors(data)
   return p.list.length > 0 || (p.types && p.types.length > 10)
 }
-const API_KEY = 'sk-ba0219fb9677478081deaf4f6d7931ca'
+const API_KEY = 'sk-dac7c21fcb434c35aa548a159de0f32d'
 const API_URL = 'https://api.deepseek.com/v1/chat/completions'
 
 /* ====================================================================
@@ -334,8 +334,8 @@ async function callAPI(prompt, maxTokens) {
   return JSON.parse(text)
 }
 
-const callCommon = (n) => callAPI(buildCommonPrompt(n), 12000)
-const callPlatform = (n, k) => callAPI(buildPlatformPrompt(n, k), 12000)
+const callCommon = (n) => callAPI(buildCommonPrompt(n), 8000)
+const callPlatform = (n, k) => callAPI(buildPlatformPrompt(n, k), 8000)
 
 /* ====================================================================
    Icons (inline SVG)
