@@ -3,7 +3,7 @@
 // JWT: HMAC-SHA256, no external libs. Data injection model — no circular deps.
 
 const crypto = require('crypto')
-const { incrementLogin, incrementAnalysis, buildUsageStats } = require('./data-store')
+const { incrementLogin, incrementAnalysis, buildUsageStats } = require('./data-store.cjs')
 
 // Shared secret
 const SSO_SECRET = process.env.SSO_SECRET || 'clawow-sso-dev-secret-2026'
@@ -43,13 +43,13 @@ function createSSORoutes(getData, getPersist) {
   // GET /api/usage — admin usage stats
   router.get('/usage', (req, res) => {
     const d = getData()
-    res.json(buildUsageStats(d?.users || []))
+    res.json(buildUsageStats(d || { users: [] }))
   })
 
   // GET /api/usage/:account — single user usage
   router.get('/usage/:account', (req, res) => {
     const d = getData()
-    const stats = buildUsageStats(d?.users || [])
+    const stats = buildUsageStats(d || { users: [] })
     const entry = stats.find(u => u.account === req.params.account)
     if (!entry) return res.status(404).json({ error: '用户不存在' })
     res.json(entry)

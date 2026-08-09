@@ -2,7 +2,7 @@ const express = require('express')
 const fs = require('fs')
 const path = require('path')
 const cors = require('cors')
-const embedding = require('./embedding')
+const embedding = require('./embedding.cjs')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -98,7 +98,7 @@ app.post('/api/cases', async (req, res) => {
 
   // Track analysis count for SSO users
   try {
-    const { incrementAnalysis } = require('./data-store')
+    const { incrementAnalysis } = require('./data-store.cjs')
     incrementAnalysis(data, user)
   } catch {}
 
@@ -119,7 +119,7 @@ app.use((req, res, next) => {
 
 let ssoRoutes
 try {
-  const createSSORoutes = require('./sso-routes')
+  const createSSORoutes = require('./sso-routes.cjs')
   ssoRoutes = createSSORoutes(() => data, () => persist)
   app.use('/api', ssoRoutes)
 } catch (err) {
