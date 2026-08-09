@@ -377,7 +377,18 @@ const API_BASE = '/api' // same origin when served by our Node server
 
 const LS_KEY = 'promo_system_user'
 
-function loadUser() { try { return JSON.parse(localStorage.getItem(LS_KEY)) } catch { return null } }
+function loadUser() {
+  // Check SSO user first (iframe embed scenario)
+  try {
+    const sso = sessionStorage.getItem('sso_user')
+    if (sso) {
+      const u = JSON.parse(sso)
+      localStorage.setItem(LS_KEY, JSON.stringify(u))
+      return u
+    }
+  } catch {}
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) } catch { return null }
+}
 function saveUser(u) { localStorage.setItem(LS_KEY, JSON.stringify(u)) }
 function clearUser() { localStorage.removeItem(LS_KEY) }
 

@@ -2,6 +2,7 @@ const express = require('express')
 const fs = require('fs')
 const path = require('path')
 const cors = require('cors')
+const embedding = require('./embedding')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -17,6 +18,7 @@ const USE_JSONBIN = JSONBIN_KEY && JSONBIN_ID
 const DATA_FILE = path.join('/tmp', 'data.json')
 
 app.use(cors())
+app.use(embedding)
 app.use(express.json({ limit: '1mb' }))
 
 // ── Data loader ──
@@ -93,6 +95,13 @@ app.post('/api/cases', async (req, res) => {
   const { user, phone, company, category, product, platforms } = req.body
   const entry = { user, phone, company, category, product, platforms, createdAt: new Date().toISOString() }
   data.cases.push(entry)
+
+  // Track analysis count for SSO users
+  try {
+    const { incrementAnalysis } = require('./data-store')
+    incrementAnalysis(data, user)
+  } catch {}
+
   await persist()
   res.json({ success: true })
 })
@@ -105,6 +114,17 @@ app.use((req, res, next) => {
     next()
   }
 })
+
+// ── SSO routes (iframe embed) ──
+
+let ssoRoutes
+try {
+  const createSSORoutes = require('./sso-routes')
+  ssoRoutes = createSSORoutes(() => data, () => persist)
+  app.use('/api', ssoRoutes)
+} catch (err) {
+  console.warn('SSO routes not loaded:', err.message)
+}
 
 // ── Persistence ──
 
