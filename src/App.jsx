@@ -60,8 +60,7 @@ function hasCompetitorData(data) {
   const p = parseCompetitors(data)
   return p.list.length > 0 || (p.types && p.types.length > 10)
 }
-const API_KEY = 'sk-dac7c21fcb434c35aa548a159de0f32d'
-const API_URL = 'https://api.deepseek.com/v1/chat/completions'
+const API_URL = '/api/analyze'
 
 /* ====================================================================
    Search keyword enhancement instruction (shared)
@@ -320,7 +319,7 @@ ${buildLifecycleInstruction(platformKey)}
 async function callAPI(prompt, maxTokens) {
     const res = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'deepseek-chat',
       messages: [{ role: 'system', content: '当前时间为2026年7月。输出纯JSON，不要markdown。使用你最新的知识库数据，内容详实可执行。' }, { role: 'user', content: prompt }],

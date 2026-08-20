@@ -106,6 +106,25 @@ app.post('/api/cases', async (req, res) => {
   res.json({ success: true })
 })
 
+// ── DeepSeek proxy (API key stays server-side, never exposed to browser) ──
+app.post('/api/analyze', async (req, res) => {
+  const key = process.env.DEEPSEEK_API_KEY
+  if (!key) return res.status(500).json({ error: '服务器未配置 DEEPSEEK_API_KEY 环境变量' })
+  try {
+    const upstream = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify(req.body)
+    })
+    const text = await upstream.text()
+    res.status(upstream.status)
+    res.set('Content-Type', 'application/json')
+    res.send(text)
+  } catch (err) {
+    res.status(502).json({ error: '上游 DeepSeek 请求失败', detail: err.message })
+  }
+})
+
 // SPA fallback
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api')) {
