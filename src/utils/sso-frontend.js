@@ -42,10 +42,14 @@ export async function loginWithToken(token) {
     const data = await res.json()
     if (data.success && data.user) {
       currentSSOUser = data.user
-      // Store in sessionStorage for React to read
+      // Write to App's real auth key (localStorage) so login survives reload and is read on boot
       try {
-        sessionStorage.setItem('sso_user', JSON.stringify(data.user))
+        localStorage.setItem('promo_system_user', JSON.stringify(data.user))
       } catch { /* quota exceeded, non-critical */ }
+      // Notify React (covers async postMessage / fallback SSO that resolves after initial render)
+      try {
+        window.dispatchEvent(new CustomEvent('sso-login', { detail: data.user }))
+      } catch { /* ignore */ }
       return data.user
     }
     return null

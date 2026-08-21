@@ -9,11 +9,13 @@ import { initSSO } from './utils/sso-frontend.js'
 
 // ── Embed mode (iframe) setup ──
 initEmbedMode()
-initSSO()         // URL sso_token → POST /api/auth/sso
 initEmbedBridge() // postMessage sso_token (alternative, safer)
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+// Wait for URL-based SSO to resolve BEFORE first render so the user lands logged-in (no flash)
+initSSO().then((ssoUser) => {
+  createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      <App initialUser={ssoUser} />
+    </StrictMode>,
+  )
+})

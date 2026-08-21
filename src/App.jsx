@@ -827,10 +827,17 @@ function AdminPanel({ onClose }) {
 /* ====================================================================
    Main App
    ==================================================================== */
-function App() {
+function App({ initialUser }) {
   // --- Auth ---
-  const [user, setUser] = useState(() => loadUser())
+  const [user, setUser] = useState(() => initialUser || loadUser())
   const [showAdmin, setShowAdmin] = useState(false)
+
+  // --- SSO async completion: refresh login state when token resolves after initial render ---
+  useEffect(() => {
+    const onSso = (e) => { if (e.detail) setUser(e.detail) }
+    window.addEventListener('sso-login', onSso)
+    return () => window.removeEventListener('sso-login', onSso)
+  }, [])
 
   // --- Analysis ---
   const [productName, setProductName] = useState('')
