@@ -110,18 +110,30 @@ app.post('/api/cases', async (req, res) => {
 app.post('/api/analyze', async (req, res) => {
   const key = process.env.DEEPSEEK_API_KEY
   if (!key) return res.status(500).json({ error: '服务器未配置 DEEPSEEK_API_KEY 环境变量' })
+
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 20000) // 20s hard timeout, avoid infinite hang on free instance
   try {
     const upstream = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(req.body),
+      signal: ctrl.signal
     })
+    clearTimeout(timer)
     const text = await upstream.text()
     res.status(upstream.status)
     res.set('Content-Type', 'application/json')
     res.send(text)
   } catch (err) {
-    res.status(502).json({ error: '上游 DeepSeek 请求失败', detail: err.message })
+    clearTimeout(timer)
+    // Connection timeout/reset to upstream — distinguish from auth errors
+    const isTimeout = err.name === 'AbortError'
+    res.status(isTimeout ? 504 : 502).json({
+      error: isTimeout ? 'DeepSeek 响应超时（上游网络抖动）' : '上游 DeepSeek 请求失败',
+      detail: err.message,
+      retryable: true
+    })
   }
 })
 
